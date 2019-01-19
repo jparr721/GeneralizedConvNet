@@ -4,14 +4,14 @@ highly accurate prediction
 
 ## Using this
 Import the module into your code:
-```
+```python
 import GeneralizedConvolutionalnetwork as GCN
 import numpy as np
 import tensorflow as tf
 ```
 
 Then simply run the module training function inside of your main method (or wherever you want your data to go)
-```
+```python
 def main():
   g = tf.Graph()
   with g.as_default():
