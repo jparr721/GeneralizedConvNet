@@ -5,7 +5,7 @@ highly accurate prediction
 ## Using this
 Import the module into your code:
 ```
-import GeneralizedConvolutionalnetwork as GCN
+from gcn import GeneralizedConvolutionalnetwork as GCN
 import numpy as np
 import tensorflow as tf
 ```

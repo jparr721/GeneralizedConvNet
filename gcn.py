@@ -1,6 +1,3 @@
-import sys
-import gzip
-import shutil
 import os
 import struct
 import tensorflow as tf
@@ -9,10 +6,59 @@ import numpy as np
 
 class GeneralizedConvolutionalNetwork(object):
     def __init__(self):
-        pass
+        self._labels = None
+        self._images = None
+
+        self._X_train = None
+        self._y_train = None
+
+        self._X_test = None
+        self._y_test = None
+
+        self._X_valid = None
+        self._y_valid = None
 
     def load_image_data(self, path: str, kind: str = 'train')->tuple:
-        pass
+        labelfile = os.path.join(path,
+                                 '{}-labels-idx1-ubyte'.format(kind))
+        imagefile = os.path.join(path,
+                                 '{}-images-idx3-ubyte'.format(kind))
+
+        with open(labelfile, 'rb') as label_path:
+            magic_number, n = struct.unpack('>II',
+                                            label_path.read(8))
+            labels = np.fromfile(label_path,
+                                 dtype=np.uint8)
+            self._labels = labels
+
+        with open(imagefile, 'rb')as img_path:
+            magic_number, num, rows, columns = struct.unpack('>IIII',
+                                                             img_path.read(16))
+            images = np.fromfile(img_path,
+                                 dtype=np.uint8).reshape(
+                                         len(self._labels), 784)
+
+            self._images = images
+
+        return images, labels
+
+    def standardize_data(self)->None:
+        X_data, y_data = self.load_image_data('./data/', kind='train')
+        self._X_test, self._y_test = self.load_image_data(
+                './data/', kind='t10k')
+
+        # Ideally, we can implement a more algorithmic approach to split
+        # this data
+        self._X_train, self._y_train = X_data[:50000, :], y_data[:50000]
+        self._X_valid, self._y_valid = X_data[50000:, :], y_data[50000:]
+
+        # Center all of the values on the gaussian curve w/ stddev 1
+        means = np.mean(self._X_train, axis=0)
+        std_dev = np.std(self._X_train)
+
+        self._X_train = (self._X_train - means)/std_dev
+        self._X_valid = (self._X_valid - means)/std_dev
+        self._X_test = (self._X_test - means)/std_dev
 
     def generate_batch(X: np.array, y: np.array, batch_size: int = 64,
                        shuffle: bool = False, random_seed: int = None):
@@ -182,10 +228,10 @@ class GeneralizedConvolutionalNetwork(object):
                 indices=tf_y, depth=10, dtype=tf.float32, name='tf_y_onehot')
 
         # First layer: Convolution one
-        layer_1 = self.conv_layer(tf_x_image, name='conv_1',
-                                  kernel_size=(5, 5),
-                                  padding_mode='VALID',
-                                  n_output_channels=32)
+        layer_1 = self.convolutional_layer(tf_x_image, name='conv_1',
+                                           kernel_size=(5, 5),
+                                           padding_mode='VALID',
+                                           n_output_channels=32)
 
         # Add our max pooling layer to minimize image size
         layer_1_pool = tf.nn.max_pool(layer_1,
@@ -196,10 +242,10 @@ class GeneralizedConvolutionalNetwork(object):
         # Second Layer: Convolution two
         # We add the layer 1 pool into the second convolutional
         # layer to further optimize on more granular results
-        layer_2 = self.conv_layer(layer_1_pool, name='conv_2',
-                                  kernel_size=(5, 5),
-                                  padding_mode='VALID',
-                                  n_output_channels=64)
+        layer_2 = self.convolutional_layer(layer_1_pool, name='conv_2',
+                                           kernel_size=(5, 5),
+                                           padding_mode='VALID',
+                                           n_output_channels=64)
 
         # Add our max pooling for layer two
         layer_2_pool = tf.nn.max_pool(layer_2,
@@ -228,7 +274,7 @@ class GeneralizedConvolutionalNetwork(object):
             # our output layer to get our probs
             'probabilities': tf.nn.softmax(layer_4, name='probabilities'),
             'labels': tf.cast(tf.argmax(
-                layer_4, axis=1), tf.in32, name='labels')
+                layer_4, axis=1), tf.int32, name='labels')
         }
 
         # Loss function and optimization and add it to our graph
@@ -251,7 +297,7 @@ class GeneralizedConvolutionalNetwork(object):
             tf.cast(correct_predictions, tf.float32),
             name='accuracy')
 
-    def save_graph(self, saver, sess, epoch, path='./model'):
+    def save_model(self, saver, sess, epoch, path='./model'):
         if not os.path.isdir(path):
             os.makedirs(path)
         print('Saving model{}'.format(path))
@@ -276,7 +322,7 @@ class GeneralizedConvolutionalNetwork(object):
         np.random.seed(random_seed)
 
         for epoch in range(1, epochs + 1):
-            batch_gen = self.batch_generator(X_data, y_data, shuffle=shuffle)
+            batch_gen = self.generate_batch(X_data, y_data, shuffle=shuffle)
             avg_loss = 0.0
 
             for i, (batch_x, batch_y) in enumerate(batch_gen):
