@@ -36,4 +36,4 @@ def main():
                   np.sum(preds == y_test)/len(y_test)))
 ```
 
-This code might change depending on what you need, so don't use it as a "this will definitely work as-in" and use it rather as an example to go off of.
+This code might change depending on what you need, so don't use it as a "this will definitely work as-is" and use it rather as an example to go off of.
