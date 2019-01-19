@@ -5,13 +5,14 @@ highly accurate prediction
 ## Using this
 Import the module into your code:
 ```
+```python
 from gcn import GeneralizedConvolutionalnetwork as GCN
 import numpy as np
 import tensorflow as tf
 ```
 
 Then simply run the module training function inside of your main method (or wherever you want your data to go)
-```
+```python
 def main():
   g = tf.Graph()
   with g.as_default():
@@ -36,4 +37,4 @@ def main():
                   np.sum(preds == y_test)/len(y_test)))
 ```
 
-This code might change depending on what you mean, so don't use it as a "this will definitely work as-in" and use it rather as an example to go off of.
+This code might change depending on what you need, so don't use it as a "this will definitely work as-is" and use it rather as an example to go off of.
