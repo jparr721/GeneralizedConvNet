@@ -4,7 +4,6 @@ highly accurate prediction
 
 ## Using this
 Import the module into your code:
-```
 ```python
 from gcn import GeneralizedConvolutionalnetwork as GCN
 import numpy as np
