@@ -2,6 +2,7 @@ import os
 import struct
 import tensorflow as tf
 import numpy as np
+from PIL import Image
 
 
 class GeneralizedConvolutionalNetwork(object):
@@ -17,6 +18,23 @@ class GeneralizedConvolutionalNetwork(object):
 
         self._X_valid = None
         self._y_valid = None
+
+        self.width = 96
+        self.height = 96
+
+    def batch_shape_image_data(self, images: list)->list:
+        for image in images:
+            # Get image path for remaking it into a PNG
+            filename, _ = os.path.splitext(image)
+
+            # First, load the image
+            img = Image.open(image)
+            img.save(filename + '.png')
+            the_png = Image.open(filename + '.png')
+            new_img = the_png.resize((self.width, self.height))
+
+            # Save our new 96x96 image
+            new_img.save(filename + '.png')
 
     def load_image_data(self, path: str, kind: str = 'train')->tuple:
         labelfile = os.path.join(path,
