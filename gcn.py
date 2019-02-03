@@ -2,6 +2,9 @@ import os
 import struct
 import tensorflow as tf
 import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from PIL import Image
 
 
@@ -22,7 +25,8 @@ class GeneralizedConvolutionalNetwork(object):
         self.width = 96
         self.height = 96
 
-    def batch_shape_image_data(self, images: list)->list:
+    def batch_shape_image_data(
+            self, images: list, inplace: bool = False)->list:
         for image in images:
             # Get image path for remaking it into a PNG
             filename, _ = os.path.splitext(image)
@@ -36,47 +40,24 @@ class GeneralizedConvolutionalNetwork(object):
             # Save our new 96x96 image
             new_img.save(filename + '.png')
 
-    def load_image_data(self, path: str, kind: str = 'train')->tuple:
-        labelfile = os.path.join(path,
-                                 '{}-labels-idx1-ubyte'.format(kind))
-        imagefile = os.path.join(path,
-                                 '{}-images-idx3-ubyte'.format(kind))
+    def load_image_data(self, names: list, annotations: list)->tuple:
+        name_annotations = dict.fromkeys(names)
 
-        with open(labelfile, 'rb') as label_path:
-            magic_number, n = struct.unpack('>II',
-                                            label_path.read(8))
-            labels = np.fromfile(label_path,
-                                 dtype=np.uint8)
-            self._labels = labels
+        for annotation in annotations:
+            if annotation[0] in name_annotations:
+                name_annotations[annotation[0]] = annotation[1]
 
-        with open(imagefile, 'rb')as img_path:
-            magic_number, num, rows, columns = struct.unpack('>IIII',
-                                                             img_path.read(16))
-            images = np.fromfile(img_path,
-                                 dtype=np.uint8).reshape(
-                                         len(self._labels), 784)
+        image_data_frame = pd.DataFrame(
+                name_annotations.items(), columns=['image_name', 'annotation'])
 
-            self._images = images
+        return image_data_frame
 
-        return images, labels
+    def standardize_data(self, frame: pd.DataFrame)->None:
+        sc = StandardScaler()
+        X = frame['image_name']
+        X = sc.transform(X)
 
-    def standardize_data(self)->None:
-        X_data, y_data = self.load_image_data('./data/', kind='train')
-        self._X_test, self._y_test = self.load_image_data(
-                './data/', kind='t10k')
-
-        # Ideally, we can implement a more algorithmic approach to split
-        # this data
-        self._X_train, self._y_train = X_data[:50000, :], y_data[:50000]
-        self._X_valid, self._y_valid = X_data[50000:, :], y_data[50000:]
-
-        # Center all of the values on the gaussian curve w/ stddev 1
-        means = np.mean(self._X_train, axis=0)
-        std_dev = np.std(self._X_train)
-
-        self._X_train = (self._X_train - means)/std_dev
-        self._X_valid = (self._X_valid - means)/std_dev
-        self._X_test = (self._X_test - means)/std_dev
+        return X
 
     def generate_batch(X: np.array, y: np.array, batch_size: int = 64,
                        shuffle: bool = False, random_seed: int = None):
@@ -233,8 +214,8 @@ class GeneralizedConvolutionalNetwork(object):
         learning_rate: float - The learning rate for how big of jumps we want
                                to make when running our optimizer
         '''
-        # NOTE: The shape of this WILL CHANGE when we get the image dimens.
-        tf_x = tf.placeholder(tf.float32, shape=[None, 784], name='tf_x')
+        # Image size is 9216 because 96x96 image sizes
+        tf_x = tf.placeholder(tf.float32, shape=[None, 9216], name='tf_x')
         tf_y = tf.placeholder(tf.int32, shape=[None], name='tf_y')
 
         # Reshape our x to a 4-dimensional tensor:
@@ -314,6 +295,8 @@ class GeneralizedConvolutionalNetwork(object):
         accuracy = tf.reduce_mean(
             tf.cast(correct_predictions, tf.float32),
             name='accuracy')
+
+        print('Accuracy: {}'.format(accuracy))
 
     def save_model(self, saver, sess, epoch, path='./model'):
         if not os.path.isdir(path):

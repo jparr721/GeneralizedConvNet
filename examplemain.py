@@ -1,9 +1,13 @@
 import tensorflow as tf
+import os
 import numpy as np
 from gcn import GeneralizedConvolutionalNetwork as gcn
 
+DATA_DIR = './data'
+
 
 def main():
+    image_files = os.listdir(DATA_DIR)
     the_secret_sauce = gcn()
 
     random_seed = 123
